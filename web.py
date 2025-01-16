@@ -1,9 +1,30 @@
 from flask import Flask, render_template_string, request, redirect
 import pandas as pd
+import os
 import urllib.parse
+
+data_path = os.path.join(os.path.dirname(__file__), "data")
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# HTML template for the calendar
+calendar_template = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Select Date</title>
+</head>
+<body>
+    <h1>Select a Date</h1>
+    <form action="/display" method="post">
+        <label for="date">Date:</label>
+        <input type="date" id="date" name="date">
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
+'''
 
 # Define the HTML template
 html_template = """
@@ -29,14 +50,12 @@ html_template = """
     </style>
 </head>
 <body>
-    <h1>Select and Display CSV Data</h1>
-    <form action="/display" method="post" enctype="multipart/form-data">
-        <label for="file">Choose a CSV file:</label>
-        <input type="file" id="file" name="file" accept=".csv" required>
-        <button type="submit">Open</button>
-    </form>
     {% if columns and rows %}
-    <h2>CSV Data</h2>
+    <h2>Tracking data</h2>
+    <form action="/view_path" method="get">
+        <input type="hidden" name="lat_lng" value="{{ lat_lng }}">
+        <button type="submit">View Path on Google Maps</button>
+    </form>
     <table>
         <thead>
             <tr>
@@ -56,10 +75,6 @@ html_template = """
             {% endfor %}
         </tbody>
     </table>
-    <form action="/view_path" method="get">
-        <input type="hidden" name="lat_lng" value="{{ lat_lng }}">
-        <button type="submit">View Path on Google Maps</button>
-    </form>
     {% endif %}
 </body>
 </html>
@@ -67,7 +82,8 @@ html_template = """
 
 def process_csv(file):
     # Load and process the CSV file
-    data = pd.read_csv(file)
+    file_path = data_path + "/" + file
+    data = pd.read_csv(file_path)
     columns_to_display = ["VehID", "stime", "lat", "lng", "velocity", "TotalDistance", "trangThai", "PowerSupply"]
     data = data[columns_to_display]
 
@@ -89,12 +105,12 @@ def process_csv(file):
 # Define the route for the homepage
 @app.route('/')
 def index():
-    return render_template_string(html_template, columns=None, rows=None, lat_lng=None)
+    return render_template_string(calendar_template, columns=None, rows=None, lat_lng=None)
 
 # Define the route to display the file
 @app.route('/display', methods=['POST'])
 def display_file():
-    file = request.files.get('file')
+    file = str(request.form.get('date')) + '.csv'
     try:
         # Process the uploaded CSV file
         data, lat_lng = process_csv(file)

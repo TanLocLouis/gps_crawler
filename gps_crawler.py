@@ -1,13 +1,19 @@
 import requests
 import time
 import csv
+import os
 from datetime import datetime
+from dotenv import load_dotenv
 
-USER_NAME = ""
-PASSWORD = ""
-TRACKER_ID = ""
-VEH_ID = ""
-SERVER_IP = ""
+base_url = "https://gps.toanthangjsc.vn/"
+data_path = os.path.join(os.path.dirname(__file__), "data")
+
+load_dotenv()
+USER_NAME = os.getenv("USER_NAME")
+PASSWORD = os.getenv("PASSWORD")
+TRACKER_ID = os.getenv("TRACKER_ID")
+VEH_ID = os.getenv("VEH_ID")
+SERVER_IP = os.getenv("SERVER_IP")
 
 def dict_to_csv(data, output_file):
     """
@@ -21,7 +27,11 @@ def dict_to_csv(data, output_file):
     flat_data = data.get('d', {})
     
     # Open the CSV file for writing
-    with open(output_file, mode='a', newline='', encoding='utf-8') as file:
+    # Create folder if it does not exist
+    if not os.path.exists(data_path):
+        os.makedirs(data_path)
+    file_path = data_path + "/" + output_file
+    with open(file_path, mode='a', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         
         # Write the headers (keys) only if the file is empty
@@ -31,11 +41,8 @@ def dict_to_csv(data, output_file):
         # Write the values (values) to the CSV
         writer.writerow(flat_data.values())
 
-def get_info():
+def login():
     # Step 1: GET to get session ID
-    # Define the target URL
-    base_url = "https://gps.toanthangjsc.vn/"
-
     # Define the headers for the request
     headers = {
         "Host": "gps.toanthangjsc.vn",
@@ -96,6 +103,9 @@ def get_info():
         print("Login failed.")
         exit()
 
+    return session_cookie
+
+def get_info(session_cookie):
     # Step 3: POST to get vehicle information
     vehicle_info_url = f"{base_url}/Default.aspx/VehicleStatus"
     headers_post_vehicle = {
@@ -136,10 +146,14 @@ def get_info():
     else:
         print("Failed to retrieve vehicle information.")
 
-
 def main():
+    # Login to the website to get the session cookie
+    # This cookie will expire after 20 mins of inactivity
+    session_cookie = login()
+
+    # Continuously get vehicle information every 10 seconds
     while True:
-        get_info()
+        get_info(session_cookie)
         time.sleep(10)
 
 if __name__ == "__main__":
