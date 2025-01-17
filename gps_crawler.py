@@ -2,6 +2,10 @@ import requests
 import time
 import csv
 import os
+import hashlib
+import configparser
+import argparse
+import getpass
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -14,6 +18,53 @@ PASSWORD = os.getenv("PASSWORD")
 TRACKER_ID = os.getenv("TRACKER_ID")
 VEH_ID = os.getenv("VEH_ID")
 SERVER_IP = os.getenv("SERVER_IP")
+
+
+
+# Function to hash the password
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# Function to store user credentials
+def store_user_credentials(username, hashed_password):
+    if not os.path.exists('users'):
+        os.makedirs('users')
+    user_file = os.path.join('users', f'{username}.conf')
+    config = configparser.ConfigParser()
+    config['User'] = {'username': username, 'password': hashed_password}
+    with open(user_file, 'w') as configfile:
+        config.write(configfile)
+
+# Function to delete user credentials
+def delete_user_credentials(username):
+    user_file = os.path.join('users', f'{username}.conf')
+    if os.path.exists(user_file):
+        os.remove(user_file)
+        print(f"User {username} deleted successfully.")
+    else:
+        print(f"User {username} does not exist.")
+
+# Argument parser setup
+parser = argparse.ArgumentParser(description='GPS Crawler')
+parser.add_argument('--add', action='store_true', help='Add a new user')
+parser.add_argument('--rm', action='store_true', help='Remove an existing user')
+
+args = parser.parse_args()
+
+if args.add:
+    username = input("Enter username: ")
+    password = getpass.getpass("Enter password: ")
+    hashed_password = hash_password(password)
+    store_user_credentials(username, hashed_password)
+    print("User created successfully.")
+    exit()
+
+if args.rm:
+    username = input("Enter username to remove: ")
+    delete_user_credentials(username)
+    exit()
+
+
 
 def dict_to_csv(data, output_file):
     """

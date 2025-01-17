@@ -1,12 +1,51 @@
-from flask import Flask, render_template_string, request, redirect
+from flask import Flask, render_template_string, request, redirect, url_for, session
 import pandas as pd
 import os
 import urllib.parse
+import configparser
+import hashlib
 
 data_path = os.path.join(os.path.dirname(__file__), "data")
 
 # Initialize Flask app
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'  # Replace with a random secret key
+
+# Function to hash the password
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+# Function to verify user credentials
+def verify_user_credentials(username, password):
+    user_file = os.path.join('users', f'{username}.conf')
+    if not os.path.exists(user_file):
+        return False
+    config = configparser.ConfigParser()
+    config.read(user_file)
+    stored_password = config.get('User', 'password')
+    return stored_password == hash_password(password)
+
+# HTML template for the login form
+login_template = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+</head>
+<body>
+    <h1>Login</h1>
+    <form action="/login" method="post">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+        <br>
+        <input type="submit" value="Login">
+    </form>
+</body>
+</html>
+'''
 
 # HTML template for the calendar
 calendar_template = '''
@@ -99,30 +138,59 @@ def process_csv(file):
 
     # Prepare latitudes and longitudes for viewing the path
     lat_lng = "|".join([f"{lat},{lng}" for lat, lng in zip(data["lat"], data["lng"])])
-    
+
     return data, lat_lng
 
-# Define the route for the homepage
+# Define the route for the login page
 @app.route('/')
-def index():
-    return render_template_string(calendar_template, columns=None, rows=None, lat_lng=None)
+def login():
+    return render_template_string(login_template)
 
-# Define the route to display the file
+# Define the route to handle login form submission
+@app.route('/login', methods=['POST'])
+def handle_login():
+    username = request.form.get('username')
+    password = request.form.get('password')
+    if verify_user_credentials(username, password):
+        session['username'] = username
+        return redirect(url_for('index'))
+    else:
+        return "Invalid username or password"
+
+# Define the route to display the calendar
+@app.route('/index')
+def index():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template_string(calendar_template)
+
+# Define the route to display the file based on the selected date
 @app.route('/display', methods=['POST'])
 def display_file():
-    file = str(request.form.get('date')) + '.csv'
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    date = request.form.get('date')
+    if not date:
+        return "No date selected"
+    
+    file_path = os.path.join(data_path, f"{date}.csv")
+    if not os.path.exists(file_path):
+        return f"File {file_path} not found"
+    
     try:
-        # Process the uploaded CSV file
-        data, lat_lng = process_csv(file)
+        # Process the CSV file
+        data, lat_lng = process_csv(f"{date}.csv")
         rows = data.values.tolist()
         columns = data.columns.tolist()
-        return render_template_string(html_template, columns=columns, rows=rows, lat_lng=lat_lng)
+        return render_template_string(html_template, date=date, columns=columns, rows=rows, lat_lng=lat_lng)
     except Exception as e:
         return f"Error: {str(e)}"
 
 # Define the route to view the path on Google Maps
 @app.route('/view_path', methods=['GET'])
 def view_path():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     lat_lng = request.args.get('lat_lng')
     if lat_lng:
         # Create the Google Maps URL with polyline of the vehicle path
