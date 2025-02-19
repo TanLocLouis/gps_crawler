@@ -1,9 +1,12 @@
 from flask import Flask, render_template_string, request, redirect, url_for, session
-import pandas as pd
 import os
 import urllib.parse
 import configparser
 import hashlib
+import csv
+from datetime import datetime
+import argparse
+import getpass
 
 data_path = os.path.join(os.path.dirname(__file__), "data")
 
@@ -21,9 +24,35 @@ def verify_user_credentials(username, password):
     if not os.path.exists(user_file):
         return False
     config = configparser.ConfigParser()
-    config.read(user_file)
+    config.read(user_file, encoding='utf-8')
     stored_password = config.get('User', 'password')
     return stored_password == hash_password(password)
+
+# Function to add a new user
+def add_user(username, password):
+    user_file = os.path.join('users', f'{username}.conf')
+    if os.path.exists(user_file):
+        print(f"User {username} already exists.")
+        return False
+    config = configparser.ConfigParser()
+    config['User'] = {
+        'username': username,
+        'password': hash_password(password)
+    }
+    with open(user_file, 'w', encoding='utf-8') as configfile:
+        config.write(configfile)
+    print(f"User {username} created successfully.")
+    return True
+
+# Function to delete a user
+def delete_user(username):
+    user_file = os.path.join('users', f'{username}.conf')
+    if not os.path.exists(user_file):
+        print(f"User {username} does not exist.")
+        return False
+    os.remove(user_file)
+    print(f"User {username} deleted successfully.")
+    return True
 
 # HTML template for the login form
 login_template = '''
@@ -121,23 +150,29 @@ html_template = """
 
 def process_csv(file):
     # Load and process the CSV file
-    file_path = data_path + "/" + file
-    data = pd.read_csv(file_path)
+    file_path = os.path.join(data_path, file)
     columns_to_display = ["VehID", "stime", "lat", "lng", "velocity", "TotalDistance", "trangThai", "PowerSupply"]
-    data = data[columns_to_display]
+    data = []
+
+    with open(file_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            data.append({col: row[col] for col in columns_to_display})
 
     # Convert the time column to a datetime object and sort by time
-    data["stime"] = pd.to_datetime(data["stime"], format="%H:%M:%S %d/%m/%Y")
-    data = data.sort_values(by="stime", ascending=False)
+    for row in data:
+        row["stime"] = datetime.strptime(row["stime"], "%H:%M:%S %d/%m/%Y")
+    data.sort(key=lambda x: x["stime"], reverse=True)
 
     # Add a Google Maps link column
     def create_google_maps_link(lat, lng):
         return f"https://www.google.com/maps?q={lat},{lng}"
 
-    data["GoogleMapsLink"] = data.apply(lambda row: create_google_maps_link(row["lat"], row["lng"]), axis=1)
+    for row in data:
+        row["GoogleMapsLink"] = create_google_maps_link(row["lat"], row["lng"])
 
     # Prepare latitudes and longitudes for viewing the path
-    lat_lng = "|".join([f"{lat},{lng}" for lat, lng in zip(data["lat"], data["lng"])])
+    lat_lng = "|".join([f"{row['lat']},{row['lng']}" for row in data])
 
     return data, lat_lng
 
@@ -180,8 +215,8 @@ def display_file():
     try:
         # Process the CSV file
         data, lat_lng = process_csv(f"{date}.csv")
-        rows = data.values.tolist()
-        columns = data.columns.tolist()
+        rows = [[row[col] for col in row] for row in data]
+        columns = list(data[0].keys())
         return render_template_string(html_template, date=date, columns=columns, rows=rows, lat_lng=lat_lng)
     except Exception as e:
         return f"Error: {str(e)}"
@@ -200,4 +235,17 @@ def view_path():
     return "No path data found"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    parser = argparse.ArgumentParser(description='User management for the web application.')
+    parser.add_argument('--useradd', help='Add a new user')
+    parser.add_argument('--userdel', help='Delete an existing user')
+    args = parser.parse_args()
+
+    if args.useradd:
+        username = args.useradd
+        password = getpass.getpass(prompt='Password: ')
+        add_user(username, password)
+    elif args.userdel:
+        username = args.userdel
+        delete_user(username)
+    else:
+        app.run(debug=True)
