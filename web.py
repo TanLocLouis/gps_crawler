@@ -7,12 +7,16 @@ import csv
 from datetime import datetime
 import argparse
 import getpass
+import logging
 
 data_path = os.path.join(os.path.dirname(__file__), "data")
 
 # Initialize Flask app
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Replace with a random secret key
+
+# Configure logging
+logging.basicConfig(filename='login.log', level=logging.INFO, format='%(asctime)s - %(username)s - %(message)s')
 
 # Function to hash the password
 def hash_password(password):
@@ -188,8 +192,10 @@ def handle_login():
     password = request.form.get('password')
     if verify_user_credentials(username, password):
         session['username'] = username
+        logging.info('Login successful', extra={'username': username})
         return redirect(url_for('index'))
     else:
+        logging.warning('Login failed', extra={'username': username})
         return "Invalid username or password"
 
 # Define the route to display the calendar

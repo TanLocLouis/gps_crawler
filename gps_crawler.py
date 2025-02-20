@@ -201,9 +201,15 @@ def main():
     # Login to the website to get the session cookie
     # This cookie will expire after 20 mins of inactivity
     session_cookie = login()
+    last_refresh = time.time()
 
     # Continuously get vehicle information every 10 seconds
     while True:
+        current_time = time.time()
+        if current_time - last_refresh > 600:
+            session_cookie = login()
+            last_refresh = current_time
+
         get_info(session_cookie)
         time.sleep(10)
 
