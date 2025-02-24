@@ -1,8 +1,9 @@
-version: '1.0'
-
 services:
   test:
     image: gpscrawler
     restart: unless-stopped
+    environment:
+      - ./data:/data
+      - ./user:/user
     ports:
       - "8000:8000"

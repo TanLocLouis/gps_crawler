@@ -1,3 +1,4 @@
+# FROM --platform=linux/arm/v7 alpine:latest
 FROM alpine:latest
 
 WORKDIR /
@@ -9,6 +10,3 @@ RUN pip install -r requirements.txt --break-system-packages
 
 EXPOSE 8000
 CMD ["sh", "start.sh"]
-
-
-
