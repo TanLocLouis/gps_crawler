@@ -74,8 +74,6 @@ def dict_to_csv(data, output_file):
         data (dict): The input dictionary to be converted.
         output_file (str): Path to the output CSV file.
     """
-    # Flatten the dictionary for the 'd' key
-    flat_data = data.get('d', {})
     
     # Open the CSV file for writing
     # Create folder if it does not exist
@@ -87,10 +85,10 @@ def dict_to_csv(data, output_file):
         
         # Write the headers (keys) only if the file is empty
         if file.tell() == 0:
-            writer.writerow(flat_data.keys())
+            writer.writerow(data.keys())
         
         # Write the values (values) to the CSV
-        writer.writerow(flat_data.values())
+        writer.writerow(data.values())
 
 def login():
     # Step 1: GET to get session ID
@@ -187,15 +185,17 @@ def get_info(session_cookie):
 
     vehicle_response = requests.post(vehicle_info_url, headers=headers_post_vehicle, json=vehicle_payload)
     if vehicle_response.status_code == 200:
-        print("Vehicle information retrieved successfully.")
         data = vehicle_response.json()
-        print(data)
+        flat_data = data.get('d', {})
+        if flat_data.get('stime') != 0:
+            print("Vehicle information retrieved successfully.")
+            print(flat_data)
 
-        current_date = datetime.now()
-        filename_date = current_date.strftime("%Y-%m-%d") + ".csv"
-        data = dict_to_csv(data, filename_date)
-    else:
-        print("Failed to retrieve vehicle information.")
+            current_date = datetime.now()
+            filename_date = current_date.strftime("%Y-%m-%d") + ".csv"
+            data = dict_to_csv(flat_data, filename_date)
+        else:
+            print("Failed to retrieve vehicle information.")
 
 def main():
     # Login to the website to get the session cookie
