@@ -191,6 +191,7 @@ def get_info(session_cookie):
             if len(flat_data.get('stime')) > 1:
                 print("Vehicle information retrieved successfully.")
                 print(flat_data)
+                print("-" * 100)
 
                 current_date = datetime.now()
                 filename_date = current_date.strftime("%Y-%m-%d") + ".csv"
@@ -200,6 +201,7 @@ def get_info(session_cookie):
     except:
         print("Failed to retrieve vehicle information.")
         time.sleep(20);
+        return [None, None]
 
 def main():
     # Login to the website to get the session cookie
@@ -216,6 +218,9 @@ def main():
             last_refresh = current_time
 
         [flat_data, filename_date] = get_info(session_cookie)
+        if flat_data is None:
+            continue
+
         current_location = [flat_data.get('lat'), flat_data.get('lng')]
         if current_location != previous_location:
             dict_to_csv(flat_data, filename_date)
