@@ -183,19 +183,25 @@ def get_info(session_cookie):
         "ServerIp": SERVER_IP 
     }
 
-    vehicle_response = requests.post(vehicle_info_url, headers=headers_post_vehicle, json=vehicle_payload)
-    if vehicle_response.status_code == 200:
-        data = vehicle_response.json()
-        flat_data = data.get('d', {})
-        if flat_data.get('stime') != 0:
-            print("Vehicle information retrieved successfully.")
-            print(flat_data)
+    try:
+        vehicle_response = requests.post(vehicle_info_url, headers=headers_post_vehicle, json=vehicle_payload)
+        if vehicle_response.status_code == 200:
+            data = vehicle_response.json()
+            flat_data = data.get('d', {})
+            if len(flat_data.get('stime')) > 1:
+                print("Vehicle information retrieved successfully.")
+                print(flat_data)
+                print("-" * 100)
 
-            current_date = datetime.now()
-            filename_date = current_date.strftime("%Y-%m-%d") + ".csv"
-            data = dict_to_csv(flat_data, filename_date)
-        else:
-            print("Failed to retrieve vehicle information.")
+                current_date = datetime.now()
+                filename_date = current_date.strftime("%Y-%m-%d") + ".csv"
+                return [flat_data, filename_date]
+            else:
+                print("Failed to retrieve vehicle information.")
+    except:
+        print("Failed to retrieve vehicle information.")
+        time.sleep(20);
+        return [None, None]
 
 def main():
     # Login to the website to get the session cookie
@@ -203,6 +209,7 @@ def main():
     session_cookie = login()
     last_refresh = time.time()
 
+    previous_location = [0, 0]
     # Continuously get vehicle information every 10 seconds
     while True:
         current_time = time.time()
@@ -210,7 +217,14 @@ def main():
             session_cookie = login()
             last_refresh = current_time
 
-        get_info(session_cookie)
+        [flat_data, filename_date] = get_info(session_cookie)
+        if flat_data is None:
+            continue
+
+        current_location = [flat_data.get('lat'), flat_data.get('lng')]
+        if current_location != previous_location:
+            dict_to_csv(flat_data, filename_date)
+            previous_location = current_location
         time.sleep(10)
 
 if __name__ == "__main__":
