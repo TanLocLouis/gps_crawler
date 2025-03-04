@@ -1,5 +1,8 @@
-# 1. Build image
-docker build -t gps_crawler .
-
-# 2. Run (specify the port 8000)
-docker run -p 8000:8000 -d gps_crawler
+# 1. Build and Run
+1. Build image: ```sudo docker build -t bike .```
+2. Set environment variables in ```.env``` file.
+3. Run container from image: ```sudo docker-compose up```
+# 2. Create a user
+1. Access to running container: ```sudo docker exec -it bike sh```  
+2. Then create a new user: ```python gps_crawler.py --add```  
+Enter new ```username``` and new ```password```
