@@ -200,7 +200,6 @@ def get_info(session_cookie):
                 print("Failed to retrieve vehicle information.")
     except:
         print("Failed to retrieve vehicle information.")
-        time.sleep(20);
         return [None, None]
 
 def main():
@@ -217,15 +216,24 @@ def main():
             session_cookie = login()
             last_refresh = current_time
 
-        [flat_data, filename_date] = get_info(session_cookie)
-        if flat_data is None:
-            continue
+        try:
+            result = get_info(session_cookie)
+            if result is None:
+                continue
+        except:
+            print("Failed to retrieve server cookie.")
+            time.sleep(10)
 
-        current_location = [flat_data.get('lat'), flat_data.get('lng')]
-        if current_location != previous_location:
-            dict_to_csv(flat_data, filename_date)
-            previous_location = current_location
-        time.sleep(10)
+        try:
+            [flat_data, filename_date] = result
+            current_location = [flat_data.get('lat'), flat_data.get('lng')]
+            if current_location != previous_location:
+                dict_to_csv(flat_data, filename_date)
+                previous_location = current_location
+            time.sleep(10)
+        except:
+            print("Failed to retrieve vehicle information.")
+            time.sleep(10)
 
 if __name__ == "__main__":
     main()
