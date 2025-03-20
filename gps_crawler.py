@@ -20,7 +20,6 @@ VEH_ID = os.getenv("VEH_ID")
 SERVER_IP = os.getenv("SERVER_IP")
 
 
-
 # Function to hash the password
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -213,18 +212,19 @@ def main():
     while True:
         current_time = time.time()
         if current_time - last_refresh > 600:
-            session_cookie = login()
-            last_refresh = current_time
+            try:
+                session_cookie = login()
+                last_refresh = current_time
+            except:
+                print("Failed to retrieve server session token.")
+                time.sleep(10)
+
 
         try:
             result = get_info(session_cookie)
             if result is None:
                 continue
-        except:
-            print("Failed to retrieve server cookie.")
-            time.sleep(10)
 
-        try:
             [flat_data, filename_date] = result
             current_location = [flat_data.get('lat'), flat_data.get('lng')]
             if current_location != previous_location:
